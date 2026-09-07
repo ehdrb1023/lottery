@@ -57,8 +57,6 @@ if menu == "🔮 번호 추출기":
         generate_btn = st.button("🚀 번호 생성하기", type="primary", use_container_width=True)
         
     if generate_btn:
-        import os # 파일 저장을 위해 필요 (맨 위에 없으면 여기서 추가)
-        
         with st.spinner('수만 개의 조합 중 최적의 번호를 필터링하고 있습니다...'):
             combos = generator.generate(n_sets=n_sets)
             
@@ -78,18 +76,22 @@ if menu == "🔮 번호 추출기":
             
         st.dataframe(pd.DataFrame(res_df), hide_index=True, use_container_width=True)
 
-        # 👇 [여기가 추가된 부분입니다: output 폴더에 history.log 저장] 👇
-        os.makedirs("output", exist_ok=True)
-        log_path = "output/history.log"
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        target_round = stats.latest_round + 1
+        # 👇 [여기가 교체된 부분입니다: 텍스트 파일 대신 Supabase DB에 로그 저장] 👇
+        from src.updater import save_log_to_db
         
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{now_str}] 제 {target_round}회차 추천 번호 ({n_sets}세트 생성)\n")
-            for i, r in enumerate(combos, 1):
-                combo_str = ", ".join([f"{x:02d}" for x in r['combo']])
-                f.write(f"  - 세트 {i:02d}: {combo_str} (이월: {r['carry']}, {r['sections']}구간)\n")
-            f.write("-" * 50 + "\n")
+        target_round = stats.latest_round + 1
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        log_content = f"[{now_str}] 제 {target_round}회차 추천 번호 ({n_sets}세트)\n"
+        for i, r in enumerate(combos, 1):
+            combo_str = ", ".join([f"{x:02d}" for x in r['combo']])
+            log_content += f"  - 세트 {i:02d}: {combo_str} (이월: {r['carry']}, {r['sections']}구간)\n"
+            
+        # Supabase 로그 테이블에 저장
+        try:
+            save_log_to_db(target_round, log_content)
+        except Exception as e:
+            st.error(f"로그 저장 중 오류가 발생했습니다: {e}")
             
 # ==========================================
 # 2. 최신 회차 업데이트 화면
