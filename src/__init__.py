@@ -1,0 +1,1 @@
+"""Lotto Pattern Analyzer & Generator Package"""
