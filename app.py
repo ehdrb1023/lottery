@@ -8,7 +8,7 @@ from src.stats import LottoStats
 from src.filter import LottoFilter
 from src.generator import LottoGenerator
 from src.updater import update_lotto_excel
-from src.theme import inject_theme, render_header, render_draws, render_footer
+from src.theme import inject_theme, render_header, render_conditions, render_draws, render_footer
 from src.coin_background import CoinBackground
 from src.intro_scene import IntroScene
 
@@ -47,24 +47,23 @@ menu = st.radio("메뉴를 선택하세요:", ["번호 추출기", "최신 회�
 # ==========================================
 if menu == "번호 추출기":
     st.title("가중치 기반 번호 추출기")
-    st.markdown("""
-    역대 1~1240회 통계를 바탕으로 **실제 당첨 비율(가중치)** 을 적용하여 최적의 번호를 생성합니다.
-    - 십의 자리 3~4구간 분배 (37% / 63%)
-    - 동끝수 1~2쌍 포함 (70% / 30%)
-    - 직전 회차 이월수 1~2개 포함
-    - 역대 1, 2등 기출 완전 배제
-    """)
-    
-    col1, col2 = st.columns([1, 2])
-    with col1:
+    st.markdown("역대 1~1240회 통계에서 **실제 당첨 비율(가중치)** 을 따져, 통계 조건을 반영한 번호를 만들어요.")
+    render_conditions([
+        "십의 자리를 3~4구간에 나눠요 (37% / 63%)",
+        "끝수가 같은 번호를 1~2쌍 넣어요 (70% / 30%)",
+        "직전 회차 번호를 1~2개 이어 써요",
+        "역대 1, 2등 번호는 빼요",
+    ])
+
+    with st.container(key="games"):
         n_sets = st.number_input("생성할 게임 수 (세트)", min_value=1, max_value=20, value=5)
-        generate_btn = st.button("번호 생성하기", type="primary", use_container_width=True)
-        
+    generate_btn = st.button("번호 만들기", type="primary", use_container_width=True)
+
     if generate_btn:
-        with st.spinner('수만 개의 조합 중 최적의 번호를 필터링하고 있습니다...'):
+        with st.spinner('통계 조건에 맞는 번호를 고르고 있어요...'):
             combos = generator.generate(n_sets=n_sets)
             
-        st.success(f"제 {stats.latest_round + 1}회차 대비 {n_sets}세트 추출 완료!")
+        st.success(f"제 {stats.latest_round + 1}회차 번호 {n_sets}세트를 만들었어요.")
         
         render_draws(combos)
 
@@ -90,7 +89,7 @@ if menu == "번호 추출기":
 # ==========================================
 elif menu == "최신 회차 업데이트":
     st.title("최신 당첨 번호 업데이트")
-    st.info("토요일 추첨 후 새로운 당첨 번호를 입력하면 데이터베이스에 자동으로 누적됩니다.")
+    st.info("토요일 추첨 후 새 당첨 번호를 입력하면 자동으로 쌓여요.")
     
     with st.form("update_form"):
         r_num = st.number_input("업데이트 할 회차 (예: 1241)", min_value=stats.latest_round + 1, value=stats.latest_round + 1)
@@ -112,7 +111,7 @@ elif menu == "최신 회차 업데이트":
         if submit:
             nums = [n1, n2, n3, n4, n5, n6]
             if len(set(nums)) != 6:
-                st.error("중복된 번호가 있습니다. 6개의 각기 다른 번호를 입력해 주세요.")
+                st.error("중복된 번호가 있어요. 서로 다른 번호 6개를 입력해 주세요.")
             else:
                 success = update_lotto_excel(
                     round_num=r_num,
@@ -122,7 +121,7 @@ elif menu == "최신 회차 업데이트":
                     file_path=excel_path
                 )
                 if success:
-                    st.success(f"{r_num}회차 당첨 번호가 성공적으로 저장되었습니다!")
+                    st.success(f"{r_num}회차 당첨 번호를 저장했어요.")
                     # 캐시를 초기화하여 다음 접속/생성 시 새로운 데이터를 물고 오게 함
                     st.cache_data.clear()
                     st.rerun()
