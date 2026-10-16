@@ -56,15 +56,26 @@
     // ---------- DOM ----------
     var root = el('div', 'intro-root');
     root.innerHTML =
-      '\x3cdiv id="intro-under">\x3cdiv class="is-photo">\x3c/div>\x3cdiv class="is-vig">\x3c/div>' + OPTS.underHtml + '\x3c/div>' +
+      '\x3cdiv id="intro-bg">\x3cdiv class="is-photo">\x3c/div>\x3cdiv class="is-vig">\x3c/div>\x3c/div>' +
+      '\x3cdiv id="intro-under">' + OPTS.underHtml + '\x3c/div>' +
       '\x3cdiv class="is-loader" role="status" aria-label="불러오는 중">\x3c/div>';
     var over = el('div', 'intro-over'); over.innerHTML = OPTS.overHtml;
+
+    var hero = el('div', 'intro-hero');
+    var title = document.createElement('h1'); title.className = 'is-title';
+    OPTS.title.split('\n').forEach(function (line, i) {
+      if (i) title.appendChild(document.createElement('br'));
+      title.appendChild(document.createTextNode(line));
+    });
+    var sub = document.createElement('p'); sub.className = 'is-sub'; sub.textContent = OPTS.sub;
+    var cta = document.createElement('button'); cta.type = 'button'; cta.className = 'is-cta'; cta.textContent = OPTS.cta;
+    hero.appendChild(title); hero.appendChild(sub); hero.appendChild(cta);
+
     var ui = el('div', 'intro-ui');
     ui.innerHTML =
-      '\x3cp class="is-cap">\x3c/p>\x3cp class="is-hint">\x3c/p>' +
-      '\x3csvg class="is-arrow" viewBox="0 0 24 24" fill="none" stroke="#EDE6D8" stroke-width="1.8" ' +
+      '\x3cp class="is-hint">\x3c/p>' +
+      '\x3csvg class="is-arrow" viewBox="0 0 24 24" fill="none" stroke="#F1EBDD" stroke-width="1.8" ' +
       'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">\x3cpath d="M5 9l7 7 7-7"/>\x3c/svg>';
-    ui.querySelector('.is-cap').textContent = OPTS.caption;
     ui.querySelector('.is-hint').textContent = OPTS.hint;
     var scroller = el('div', 'intro-scroller');
     scroller.setAttribute('tabindex', '0');
@@ -73,14 +84,17 @@
     var spacer = el('div', 'intro-spacer'); scroller.appendChild(spacer);
     var skip = el('button', 'intro-skip'); skip.type = 'button'; skip.textContent = '건너뛰기';
 
-    [root, over, ui, scroller, skip].forEach(function (n) { document.body.appendChild(n); });
+    var nodes = [root, over, hero, ui, scroller, skip];
+    nodes.forEach(function (n) { document.body.appendChild(n); });
     doc.classList.add('intro-on');
 
     var under = root.querySelector('#intro-under');
+    var bg = root.querySelector('#intro-bg');
     var photo = root.querySelector('.is-photo');
     function q(sel) { return root.querySelector(sel) || over.querySelector(sel); }
     var E = {
-      table: q('.lf-table'), glow: q('.lf-glow'), shadow: q('.lf-shadow'), deck: q('.lf-deck'),
+      ground: q('.lf-ground'), legL: q('.lf-leg-l'), legR: q('.lf-leg-r'), deskTop: q('.lf-desk-top'),
+      deskFront: q('.lf-desk-front'), glow: q('.lf-glow'), shadow: q('.lf-shadow'), deck: q('.lf-deck'),
       screenBg: q('.lf-screen-bg'), bezel: q('.lf-bezel'), cam: q('.lf-cam'), glare: q('.lf-glare')
     };
 
@@ -95,7 +109,7 @@
     var img = new Image();
     img.onload = function () {
       photo.style.backgroundImage = 'url("' + OPTS.imageUrl + '")';
-      photo.style.backgroundPosition = '62% 38%';
+      photo.style.backgroundPosition = '62% 42%';
       (img.decode ? img.decode().catch(function () {}) : Promise.resolve()).then(markReady);
     };
     img.onerror = markReady;      // 사진이 없어도 어두운 배경 + 노트북으로 진행
@@ -107,18 +121,12 @@
     function layout() {
       var vw = window.innerWidth, vh = window.innerHeight;
       var mobile = vw < OPTS.mobileBreakpoint;
-      var Lw = mobile ? vw * 0.9 : Math.min(vw * 0.6, 1000);
-      var bz, sw, sh, lh, deckH;
-      for (var i = 0; i < 6; i++) {
-        bz = Math.max(7, Lw * 0.012);
-        sw = Lw - 2 * bz; sh = sw / ASPECT;
-        lh = sh + bz * 1.1 + bz * 1.6;
-        deckH = Lw * 0.15;
-        if (lh + deckH <= vh * (mobile ? 0.5 : 0.62)) break;
-        Lw *= 0.92;
-      }
+      var Lw = mobile ? vw * 0.56 : Math.max(240, Math.min(vw * 0.2, 340));
+      var bz = Math.max(5, Lw * 0.016);
+      var sw = Lw - 2 * bz, sh = sw / ASPECT;
+      var lh = sh + bz * 1.1 + bz * 1.6, deckH = Lw * 0.15;
       var lx = (vw - Lw) / 2;
-      var ly = Math.max(vh * 0.07, vh * (mobile ? 0.4 : 0.44) - (lh + deckH) / 2);
+      var ly = vh * (mobile ? 0.64 : 0.66) - (lh + deckH) / 2;
       var sx = lx + bz, sy = ly + bz * 1.1;
       G = {
         vw: vw, vh: vh, mobile: mobile, Lw: Lw, lh: lh, lx: lx, ly: ly, bz: bz,
@@ -127,21 +135,29 @@
       };
 
       var deckTop = ly + lh - 1, deckW = Lw * 1.1;
-      px(E.table, { top: ly + lh * (mobile ? 0.9 : 0.8) });
+      var deskW = Lw * 2.3, deskL = (vw - deskW) / 2;
+      var topY = deckTop + deckH * 0.3, frontY = deckTop + deckH * 0.93, frontH = Math.max(7, Lw * 0.03);
+      var legW = Math.max(3, Lw * 0.014), legTop = frontY + frontH, legH = Math.max(24, vh * 0.12);
+      px(E.ground, { height: vh * 0.3 });
+      px(E.deskTop, { left: deskL, top: topY, width: deskW, height: frontY - topY });
+      px(E.deskFront, { left: deskL, top: frontY, width: deskW, height: frontH });
+      px(E.legL, { left: deskL + deskW * 0.06, top: legTop, width: legW, height: legH });
+      px(E.legR, { left: deskL + deskW * 0.94 - legW, top: legTop, width: legW, height: legH });
       px(E.glow, { left: lx - Lw * 0.1, top: ly + lh * 0.7, width: Lw * 1.2, height: Lw * 0.5 });
-      px(E.shadow, { left: lx - Lw * 0.12, top: deckTop + deckH * 0.55, width: Lw * 1.24, height: deckH * 0.9 });
+      px(E.shadow, { left: lx - Lw * 0.15, top: deckTop + deckH * 0.7, width: Lw * 1.3, height: deckH * 0.9 });
       px(E.deck, { left: (vw - deckW) / 2, top: deckTop, width: deckW, height: deckH });
-      E.deck.style.setProperty('--kp', Math.max(10, Lw * 0.0235) + 'px');
-      E.deck.style.setProperty('--kh', Math.max(7, deckH * 0.098) + 'px');
+      E.deck.style.setProperty('--kp', Math.max(6, Lw * 0.0235) + 'px');
+      E.deck.style.setProperty('--kh', Math.max(4, deckH * 0.098) + 'px');
       px(E.screenBg, { left: sx, top: sy, width: sw, height: sh });
       px(E.bezel, { left: lx, top: ly, width: Lw, height: lh });
       E.bezel.style.borderWidth = [bz * 1.1, bz, bz * 1.6, bz].map(function (n) { return n + 'px'; }).join(' ');
-      E.bezel.style.borderRadius = Math.max(10, Lw * 0.012) + 'px';
+      E.bezel.style.borderRadius = Math.max(5, Lw * 0.02) + 'px';
       E.cam.style.top = (bz * 0.55) + 'px';
       px(E.glare, { left: sx, top: sy, width: sw, height: sh });
 
       var origin = G.cx + 'px ' + G.cy + 'px';
       under.style.transformOrigin = origin;
+      bg.style.transformOrigin = origin;
       over.style.transformOrigin = origin;
       scroller.style.setProperty('--x', '0');
       spacer.style.height = (G.vh * (mobile ? 2.2 : 3.2)) + 'px';
@@ -165,9 +181,14 @@
       var tf = 'translate(' + tx + 'px,' + ty + 'px) scale(' + S + ')';
       under.style.transform = tf;
       over.style.transform = tf;
+      bg.style.transform = 'scale(' + Math.pow(S, 0.3) + ')';   // 배경 사진은 천천히 다가온다
       under.style.opacity = ready ? String(1 - smooth((zp - 0.3) / 0.6)) : '';
+      bg.style.opacity = ready ? String(1 - smooth((zp - 0.4) / 0.55)) : '';
+      hero.style.opacity = ready ? String(1 - clamp01(p / 0.1)) : '';
+      hero.style.transform = 'translateY(' + (-p * 80) + 'px)';
+      cta.style.pointerEvents = p > 0.02 ? 'none' : 'auto';
       over.style.opacity = String(1 - smooth((zp - 0.62) / 0.35));
-      ui.style.opacity = ready ? String(1 - clamp01(p / 0.14)) : '';
+      ui.style.opacity = ready ? String(1 - clamp01(p / 0.1)) : '';
       skip.style.opacity = String(1 - smooth((p - 0.7) / 0.3));
 
       setApp({
@@ -183,7 +204,7 @@
     function cleanup() {
       ['width', 'height', 'transform', 'border-radius'].forEach(function (k) { app.style.removeProperty(k); });
       doc.classList.remove('intro-on');
-      [root, over, ui, scroller, skip].forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+      nodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
     }
     function done() {
       if (finished) return; finished = true;
@@ -200,10 +221,10 @@
       ['width', 'height', 'transform', 'border-radius'].forEach(function (k) { app.style.removeProperty(k); });
       doc.classList.remove('intro-on');
       scroller.style.pointerEvents = 'none';
-      gsap.to([root, over, ui, skip], {
+      gsap.to([root, over, hero, ui, skip], {
         opacity: 0, duration: 0.45, ease: 'power1.out',
         onComplete: function () {
-          [root, over, ui, scroller, skip].forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+          nodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
           window.__introDone = true;
           window.dispatchEvent(new Event('intro:done'));
         }
@@ -239,6 +260,7 @@
       tween = gsap.to(scroller, { scrollTop: max, duration: DURATION, ease: 'none', onComplete: function () { tween = null; } });
     }
     scroller.addEventListener('click', enter);
+    cta.addEventListener('click', function (e) { e.stopPropagation(); enter(); });
     scroller.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault(); enter();
