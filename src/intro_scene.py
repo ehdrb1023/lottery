@@ -21,6 +21,8 @@ def _image_src(fallback_url):
 
 _CSS = """
 html.intro-on,html.intro-on body{overflow:hidden !important;}
+html,body{overscroll-behavior-y:none;}
+[data-testid="stMain"]{overscroll-behavior-y:contain;}
 html.intro-on .stApp{position:fixed !important;left:0 !important;top:0 !important;z-index:99992 !important;
   transform-origin:0 0 !important;overflow:hidden !important;background:#151515 !important;pointer-events:none !important;}
 
@@ -85,8 +87,8 @@ class IntroScene:
 
     가운데에는 문구와 은은한 버튼이 있고, 스크롤하거나 버튼/화면을 누르면 카메라가 노트북 화면 속으로 들어간다.
     노트북 화면 안의 사이트는 이미지가 아니라 실제 앱 화면(DOM)을 축소해서 보여준다.
-    한 번 본 방문자는 localStorage 로 기억해 바로 본 화면으로 간다.
-    주소 뒤에 ?intro=replay 를 붙이면 다시 볼 수 있다.
+    따로 지나가는 페이지가 아니라 한 페이지의 맨 위 화면이다. 아래로 내리면 사이트가 되고,
+    사이트 맨 위에서 다시 올리면 야경 화면으로 돌아온다. 주소 뒤에 ?intro=0 을 붙이면 야경 화면 없이 사이트만 나온다.
     """
 
     def __init__(
@@ -96,7 +98,6 @@ class IntroScene:
         sub="통계 조건을 반영해 번호를 추천해 드려요",
         cta="로또 번호 뽑아보기",
         hint="아래로 스크롤하거나 화면을 눌러보세요",
-        storage_key="lotto-intro-seen",
         gsap_url="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js",
         scroll_trigger_url="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js",
         mobile_breakpoint=700,
@@ -108,7 +109,6 @@ class IntroScene:
             "sub": sub,
             "cta": cta,
             "hint": hint,
-            "storageKey": storage_key,
             "gsapUrl": gsap_url,
             "scrollTriggerUrl": scroll_trigger_url,
             "mobileBreakpoint": mobile_breakpoint,

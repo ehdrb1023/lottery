@@ -4,6 +4,8 @@
  * 앱 화면은 노트북 화면 크기로 축소되어 있다가, 진행도 p(0→1)에 따라 실제 크기가 된다.
  *   p 0~0.8  : 노트북 화면을 기준점으로 카메라가 다가간다(야경·테이블·본체는 어두워지며 사라짐)
  *   p 0.78~1 : 화면 높이를 실제 화면 높이까지 펼친다(모바일처럼 비율이 다를 때 자연스럽게 이어짐)
+ * 따로 지나가는 페이지가 아니라 "한 페이지의 맨 위 화면"이다.
+ *   아래로 내리면 사이트가 되고, 사이트 맨 위에서 다시 올리면 야경 화면으로 돌아온다(되돌아갈 때는 자동 재생).
  * __OPTS__ 는 intro_scene.py 가 JSON 설정으로 치환한다.
  */
 (function (OPTS) {
@@ -11,16 +13,12 @@
   if (window.__introScene) return;
   window.__introScene = true;
 
-  var KEY = OPTS.storageKey;
   var ASPECT = 1.6;                  // 노트북 화면 비율(16:10)
   var DURATION = 1.4;                // 클릭 시 자동 재생 시간(초)
   var doc = document.documentElement;
 
   var params = new URLSearchParams(location.search);
-  var mode = params.get('intro');    // replay: 다시 보기 / 0: 건너뛰기
-  var seen = false;
-  try { seen = localStorage.getItem(KEY) === '1'; } catch (e) {}
-  if (mode === '0' || (seen && mode !== 'replay')) { window.__introDone = true; return; }
+  if (params.get('intro') === '0') { window.__introDone = true; return; }   // ?intro=0 : 야경 화면 없이 사이트만
   window.__introDone = false;
 
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -37,7 +35,6 @@
   }
 
   function finishNow() {          // 라이브러리를 못 불러오는 등 문제가 생기면 인트로 없이 진행
-    try { localStorage.setItem(KEY, '1'); } catch (e) {}
     window.__introDone = true;
     window.dispatchEvent(new Event('intro:done'));
   }
@@ -169,6 +166,7 @@
       for (var k in styleObj) app.style.setProperty(k, styleObj[k], 'important');
     }
     function render(p) {
+      if (inSite) return;           // 사이트가 펼쳐진 동안에는 앱 화면을 건드리지 않는다
       P = p;
       var zp = clamp01(p / 0.8);
       var S = Math.pow(G.k, zp);
@@ -196,49 +194,73 @@
         transform: 'translate(' + ax + 'px,' + ay + 'px) scale(' + a + ')',
         'border-radius': (3 * (1 - zp)) + 'px'
       });
-      if (p >= 0.999) done();
+      if (p >= 0.999 && !inSite && performance.now() > lockUntil) enterSite();
     }
 
-    // ---------- 종료 ----------
-    var finished = false;
-    function cleanup() {
-      ['width', 'height', 'transform', 'border-radius'].forEach(function (k) { app.style.removeProperty(k); });
+    // ---------- 야경 화면 ↔ 사이트 전환 ----------
+    var inSite = false, lockUntil = 0, siteLock = 0, tween = null, st = null, tl = null;
+    var proxy = { p: 0 };
+    var APP_PROPS = ['width', 'height', 'transform', 'border-radius'];
+    function maxScroll() { return Math.max(1, scroller.scrollHeight - scroller.clientHeight); }
+    function clearApp() { APP_PROPS.forEach(function (k) { app.style.removeProperty(k); }); }
+    function stMain() { return document.querySelector('[data-testid="stMain"]'); }
+
+    function enterSite() {            // 사이트가 실제 크기가 됨 → 야경 화면은 숨김(지우지 않고 보관)
+      if (inSite) return;
+      inSite = true; siteLock = performance.now() + 700;
+      if (tween) { tween.kill(); tween = null; }
+      clearApp();
       doc.classList.remove('intro-on');
-      nodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
+      nodes.forEach(function (n) { n.style.display = 'none'; });
+      if (!window.__introDone) {
+        window.__introDone = true;
+        window.dispatchEvent(new Event('intro:done'));
+      }
     }
-    function done() {
-      if (finished) return; finished = true;
-      try { localStorage.setItem(KEY, '1'); } catch (e) {}
-      if (st) st.kill();
-      cleanup();
-      window.__introDone = true;
-      window.dispatchEvent(new Event('intro:done'));
-    }
-    function fadeOut() {       // 건너뛰기 / 움직임 줄이기: 확대 없이 페이드로만 전환
-      if (finished) return; finished = true;
-      try { localStorage.setItem(KEY, '1'); } catch (e) {}
-      if (st) st.kill();
-      ['width', 'height', 'transform', 'border-radius'].forEach(function (k) { app.style.removeProperty(k); });
+
+    function fadeToSite() {           // 건너뛰기 / 움직임 줄이기: 확대 없이 페이드로만 전환
+      if (inSite) return;
+      if (tween) { tween.kill(); tween = null; }
+      clearApp();
       doc.classList.remove('intro-on');
       scroller.style.pointerEvents = 'none';
       gsap.to([root, over, hero, ui, skip], {
         opacity: 0, duration: 0.45, ease: 'power1.out',
         onComplete: function () {
-          nodes.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
-          window.__introDone = true;
-          window.dispatchEvent(new Event('intro:done'));
+          gsap.set([root, over, hero, ui, skip], { clearProps: 'opacity' });
+          scroller.style.pointerEvents = '';
+          inSite = false; enterSite();
         }
       });
     }
 
+    function reopenIntro() {          // 사이트 맨 위에서 다시 올림 → 야경 화면으로 돌아감
+      if (!inSite) return;
+      inSite = false;
+      var m = stMain(); if (m) m.scrollTop = 0;
+      window.scrollTo(0, 0);
+      nodes.forEach(function (n) { n.style.display = ''; });
+      doc.classList.add('intro-on');
+      layout();
+      if (reduce) {
+        render(0);
+        gsap.fromTo([root, over, hero, ui, skip], { opacity: 0 }, { opacity: 1, duration: 0.45, clearProps: 'opacity' });
+        return;
+      }
+      var f = 0.776;                  // 진행도 약 0.9 (사이트가 막 펼쳐지는 지점)에서 시작해 거꾸로 재생
+      lockUntil = performance.now() + 600;
+      tl.progress(f);
+      scroller.scrollTop = f * maxScroll();
+      render(proxy.p);
+      tween = gsap.to(scroller, { scrollTop: 0, duration: 1.1, ease: 'none', onComplete: function () { tween = null; } });
+    }
+
     // ---------- 스크롤 / 클릭 ----------
-    var st = null, tween = null;
     layout();
-    var proxy = { p: 0 };
     render(0);
 
     if (!reduce) {
-      var tl = gsap.timeline({
+      tl = gsap.timeline({
         scrollTrigger: {
           trigger: spacer, scroller: scroller, start: 'top top', end: 'bottom bottom', scrub: 0.3
         }
@@ -246,18 +268,16 @@
       tl.to(proxy, { p: 1, ease: 'power2.inOut', duration: 1, onUpdate: function () { render(proxy.p); } });
       st = tl.scrollTrigger;
     } else {
-      // 움직임 줄이기: 확대 없이 노트북 화면 그대로 두었다가 입력이 있으면 페이드로 전환
       ['wheel', 'touchmove'].forEach(function (ev) {
-        scroller.addEventListener(ev, function () { if (ready) fadeOut(); }, { passive: true });
+        scroller.addEventListener(ev, function () { if (ready) fadeToSite(); }, { passive: true });
       });
     }
 
     function enter() {
-      if (finished || !ready) return;
-      if (reduce) { fadeOut(); return; }
+      if (inSite || !ready) return;
+      if (reduce) { fadeToSite(); return; }
       if (tween) return;
-      var max = scroller.scrollHeight - scroller.clientHeight;
-      tween = gsap.to(scroller, { scrollTop: max, duration: DURATION, ease: 'none', onComplete: function () { tween = null; } });
+      tween = gsap.to(scroller, { scrollTop: maxScroll(), duration: DURATION, ease: 'none', onComplete: function () { tween = null; } });
     }
     scroller.addEventListener('click', enter);
     cta.addEventListener('click', function (e) { e.stopPropagation(); enter(); });
@@ -266,11 +286,57 @@
         e.preventDefault(); enter();
       }
     });
-    skip.addEventListener('click', function (e) { e.stopPropagation(); fadeOut(); });
+    skip.addEventListener('click', function (e) { e.stopPropagation(); fadeToSite(); });
+
+    // 스크롤을 중간에서 멈추면 가던 방향 쪽으로 마저 이동 (어중간한 상태로 남지 않게)
+    var lastTop = 0, dir = 1, snapT = 0, touching = false;
+    function snap() {
+      if (inSite || tween || touching || reduce) return;
+      var max = maxScroll(), f = scroller.scrollTop / max;
+      if (f < 0.015 || f > 0.985) return;
+      var target = dir > 0 ? max : 0;
+      tween = gsap.to(scroller, {
+        scrollTop: target, duration: 0.35 + 0.9 * Math.abs(target / max - f), ease: 'power2.out',
+        onComplete: function () { tween = null; }
+      });
+    }
+    scroller.addEventListener('scroll', function () {
+      var t = scroller.scrollTop;
+      if (t !== lastTop) { dir = t > lastTop ? 1 : -1; lastTop = t; }
+      clearTimeout(snapT);
+      if (!tween && !touching) snapT = setTimeout(snap, 170);
+    }, { passive: true });
+    scroller.addEventListener('wheel', function () { if (tween) { tween.kill(); tween = null; } }, { passive: true });
+    scroller.addEventListener('touchstart', function () { touching = true; if (tween) { tween.kill(); tween = null; } }, { passive: true });
+    scroller.addEventListener('touchend', function () { touching = false; clearTimeout(snapT); snapT = setTimeout(snap, 120); }, { passive: true });
+
+    // 사이트 맨 위에서 위로 올리려는 동작 → 야경 화면으로
+    function siteAtTop() { var m = stMain(); return (m ? m.scrollTop : window.scrollY) <= 1; }
+    // 위로 빠르게 올리다 관성으로 맨 위에 닿은 경우에는 되돌아가지 않고, 맨 위에 잠시 머문 뒤의 새 동작만 인정한다
+    var awayAt = 0;
+    document.addEventListener('scroll', function () { if (inSite && !siteAtTop()) awayAt = performance.now(); }, true);
+    function canReopen(target) {
+      if (!inSite || performance.now() < siteLock || performance.now() - awayAt < 450 || !siteAtTop()) return false;
+      return !(target && target.closest && target.closest('[data-testid="stDataFrame"],textarea,input,[role="listbox"]'));
+    }
+    var lastWheelAt = 0;
+    window.addEventListener('wheel', function (e) {
+      var now = performance.now(), fresh = now - lastWheelAt > 220;   // 휠이 잠시 멈췄다가 새로 시작된 동작만
+      lastWheelAt = now;
+      if (e.deltaY < 0 && fresh && canReopen(e.target)) reopenIntro();
+    }, { passive: true });
+    var ty0 = 0, tTop = false;
+    window.addEventListener('touchstart', function (e) { ty0 = e.touches[0].clientY; tTop = inSite && siteAtTop(); }, { passive: true });
+    window.addEventListener('touchmove', function (e) {
+      if (tTop && e.touches[0].clientY - ty0 > 28 && canReopen(e.target)) { tTop = false; reopenIntro(); }
+    }, { passive: true });
+    window.addEventListener('keydown', function (e) {
+      if ((e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'Home') && canReopen(e.target)) reopenIntro();
+    });
 
     var rt = 0;
     window.addEventListener('resize', function () {
-      if (finished) return;
+      if (inSite) return;
       cancelAnimationFrame(rt);
       rt = requestAnimationFrame(function () { layout(); render(P); if (st) st.refresh(); });
     });
