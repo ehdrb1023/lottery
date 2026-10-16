@@ -10,10 +10,12 @@ from src.generator import LottoGenerator
 from src.updater import update_lotto_excel
 from src.theme import inject_theme, render_header, render_draws, render_footer
 from src.coin_background import CoinBackground
+from src.intro_scene import IntroScene
 
 # 웹페이지 기본 설정
 st.set_page_config(page_title="로또 번호 추천", layout="centered", initial_sidebar_state="collapsed")
 inject_theme()
+IntroScene().render()
 CoinBackground().render()
 
 # 데이터 로딩 (캐싱하여 속도 최적화)
