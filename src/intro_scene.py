@@ -1,3 +1,4 @@
+import base64
 import json
 from pathlib import Path
 
@@ -6,6 +7,16 @@ import streamlit as st
 from src.laptop_frame import LaptopFrame
 
 _JS_PATH = Path(__file__).with_name("intro_scene.js")
+_IMAGE_PATH = Path(__file__).resolve().parent.parent / "static" / "intro.webp"
+
+
+def _image_src(fallback_url):
+    """사진을 코드에 직접 포함(data URL)한다. 배포 환경의 정적 파일 서빙 설정과 무관하게 항상 보인다."""
+    try:
+        data = base64.b64encode(_IMAGE_PATH.read_bytes()).decode("ascii")
+        return f"data:image/webp;base64,{data}"
+    except OSError:
+        return fallback_url
 
 _CSS = """
 html.intro-on,html.intro-on body{overflow:hidden !important;}
@@ -74,7 +85,7 @@ class IntroScene:
     ):
         self.laptop = LaptopFrame()
         self.options = {
-            "imageUrl": image_url,
+            "imageUrl": _image_src(image_url),
             "caption": caption,
             "hint": hint,
             "storageKey": storage_key,
