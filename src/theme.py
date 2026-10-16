@@ -61,10 +61,12 @@ strong,b{font-weight:600;color:var(--ink);}
 [data-testid="stElementContainer"]:has([data-testid="stRadio"]),[data-testid="stRadio"],[data-testid="stRadioGroup"]{width:100% !important;}
 [data-testid="stRadio"] [role="radiogroup"]{background:var(--card);border-radius:999px;padding:4px;gap:2px;
   flex-wrap:nowrap;width:100%;}
-[data-testid="stRadioOption"]{flex:1 1 0;display:flex !important;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 .4rem;
+[data-testid="stRadio"] [role="radiogroup"] > *{flex:1 1 0;min-width:0;display:flex;}
+[data-testid="stRadioOption"]{flex:1 1 0;width:100%;display:flex !important;align-items:center;justify-content:center;min-height:46px;margin:0;padding:0 .4rem;
   border-radius:999px;cursor:pointer;transition:background .2s;}
-[data-testid="stRadioOption"] > div,[data-testid="stRadioOption"] > div > div{display:flex;align-items:center;justify-content:center;width:100%;}
-[data-testid="stRadioOption"] > div > div > div:first-child{display:none;}
+/* Streamlit 버전마다 안쪽 단계 수가 달라서, 글자를 감싼 상자만 가운데 정렬하고 동그라미 표시는 통째로 숨긴다 */
+[data-testid="stRadioOption"] div:has([data-testid="stMarkdownContainer"]){display:flex;align-items:center;justify-content:center;width:100%;}
+[data-testid="stRadioOption"] div:not(:has([data-testid="stMarkdownContainer"])):not([data-testid="stMarkdownContainer"]){display:none !important;}
 [data-testid="stRadioOption"] [data-testid="stMarkdownContainer"]{width:auto;}
 [data-testid="stRadioOption"] p{font-size:.94rem;font-weight:500;color:var(--muted);white-space:nowrap;text-align:center;}
 [data-testid="stRadioOption"][data-selected="true"]{background:var(--ink);}

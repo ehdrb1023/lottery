@@ -383,12 +383,12 @@
     if (OPTS.soundToggle) {
       var st = document.createElement('style');
       st.textContent =
-        '#coin-sound-toggle{position:fixed;right:16px;bottom:16px;z-index:5;min-height:44px;padding:0 18px;' +
+        '#coin-sound-toggle{position:fixed;left:16px;bottom:16px;z-index:5;min-height:44px;padding:0 18px;' +
         'font:500 16px/1 Pretendard,system-ui,sans-serif;color:#EDE6D8;background:#1c1a17;' +
         'border:1px solid rgba(201,164,76,.55);border-radius:999px;cursor:pointer}' +
         '#coin-sound-toggle[aria-pressed="true"]{color:#1A1A1A;background:#C9A44C;border-color:#C9A44C}' +
         '#coin-sound-toggle:focus-visible{outline:2px solid #C9A44C;outline-offset:3px}' +
-        '@media (max-width:700px){#coin-sound-toggle{bottom:auto;top:10px;right:10px;min-height:40px;padding:0 12px;font-size:15px}}';
+        '@media (max-width:700px){#coin-sound-toggle{bottom:auto;top:10px;left:auto;right:10px;min-height:40px;padding:0 12px;font-size:15px}}';
       document.head.appendChild(st);
       var btn = document.createElement('button');
       btn.id = 'coin-sound-toggle';
